@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LUVFAN</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        serif: ['"Playfair Display"', 'serif'],
+                        mono: ['"JetBrains Mono"', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Playfair+Display:ital,wght@0,500;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #030108;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: #f8fafc;
+        }
+
+        /* Ambient Glow Backdrop */
+        .ambient-glow {
+            position: absolute;
+            width: 800px;
+            height: 800px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(244, 114, 182, 0.15) 0%, rgba(168, 85, 247, 0.08) 40%, transparent 70%);
+            filter: blur(100px);
+            pointer-events: none;
+        }
+
+        /* Glassmorphism Card UI */
+        .luxury-glass {
+            background: rgba(18, 11, 28, 0.65);
+            backdrop-filter: blur(36px) saturate(190%);
+            -webkit-backdrop-filter: blur(36px) saturate(190%);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.85),
+                        0 18px 36px -18px rgba(236, 72, 153, 0.25),
+                        inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        /* Input Pin Box */
+        .pin-box {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .pin-box:focus-within, .pin-box.active {
+            border-color: rgba(244, 114, 182, 0.85);
+            background: rgba(244, 114, 182, 0.1);
+            box-shadow: 0 0 18px rgba(244, 114, 182, 0.3), inset 0 0 12px rgba(244, 114, 182, 0.15);
+            transform: translateY(-1px);
+        }
+
+        /* Shimmer Button */
+        .btn-modern {
+            background: linear-gradient(135deg, #f43f5e 0%, #e11d48 50%, #be123c 100%);
+            box-shadow: 0 8px 25px -4px rgba(225, 29, 72, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .btn-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px -2px rgba(225, 29, 72, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+            filter: brightness(1.1);
+        }
+
+        .btn-modern:active {
+            transform: translateY(0);
+        }
+
+        /* Shake animation for invalid passcode */
+        @keyframes shake-modern {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+
+        .shake {
+            animation: shake-modern 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+    </style>
+
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body class="relative w-screen h-screen overflow-hidden flex items-center justify-center bg-[#030108]">
+
+    <div class="ambient-glow top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
+    <div id="canvas-container"></div>
+
+    <div id="ui-overlay" class="relative z-10 w-full max-w-[420px] px-5 transition-all duration-700 ease-out">
+        <div class="luxury-glass rounded-3xl p-8 sm:p-10 text-center flex flex-col items-center">
+            
+            <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.05] border border-white/10 mb-6 backdrop-blur-md">
+                <svg class="w-3.5 h-3.5 text-rose-400" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+                <span class="text-[11px] font-semibold tracking-widest uppercase text-rose-200/90">ANNIVERSARY</span>
+            </div>
+
+            <h1 class="text-4xl sm:text-5xl font-serif font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-100 to-rose-200 mb-2">
+                LUVFAN
+            </h1>
+            
+            <p class="text-xs sm:text-sm text-slate-300 font-light leading-relaxed max-w-[280px] mb-8">
+                ใส่วันคบค่ะะ
+            </p>
+
+            <div class="w-full mb-6 relative">
+                <input 
+                    type="tel" 
+                    id="passcode-hidden" 
+                    maxlength="6" 
+                    pattern="[0-9]*"
+                    inputmode="numeric"
+                    autocomplete="off" 
+                    class="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" 
+                    autofocus
+                />
+
+                <div id="pin-container" class="grid grid-cols-6 gap-2 sm:gap-2.5">
+                    <div class="pin-box h-12 sm:h-13 rounded-xl flex items-center justify-center text-lg font-mono font-bold text-rose-300"></div>
+                    <div class="pin-box h-12 sm:h-13 rounded-xl flex items-center justify-center text-lg font-mono font-bold text-rose-300"></div>
+                    <div class="pin-box h-12 sm:h-13 rounded-xl flex items-center justify-center text-lg font-mono font-bold text-rose-300"></div>
+                    <div class="pin-box h-12 sm:h-13 rounded-xl flex items-center justify-center text-lg font-mono font-bold text-rose-300"></div>
+                    <div class="pin-box h-12 sm:h-13 rounded-xl flex items-center justify-center text-lg font-mono font-bold text-rose-300"></div>
+                    <div class="pin-box h-12 sm:h-13 rounded-xl flex items-center justify-center text-lg font-mono font-bold text-rose-300"></div>
+                </div>
+
+                <div class="h-6 mt-3 flex items-center justify-center">
+                    <p id="error-msg" class="text-rose-400 text-xs font-medium opacity-0 transition-opacity duration-300 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span>วันครบรอบไม่ถูก ลองอีกครั้งนะคะ</span>
+                    </p>
+                </div>
+            </div>
+
+            <button 
+                id="submit-btn" 
+                class="btn-modern w-full py-3.5 rounded-xl font-semibold text-sm text-white tracking-wide flex items-center justify-center gap-2 cursor-pointer"
+            >
+                <span>ยืนยัน</span>
+                <svg class="w-4 h-4 text-rose-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                </svg>
+            </button>
+
+            <p class="text-[10px] text-slate-400 tracking-wider uppercase mt-6">รักแฟนที่สู้ดดดดด</p>
+        </div>
+    </div>
+
+    <!-- Interactive Hint Floating UI -->
+    <div id="interactive-hint" class="fixed top-6 left-1/2 -translate-x-1/2 z-20 opacity-0 transition-opacity duration-700 pointer-events-none luxury-glass px-5 py-2.5 rounded-full text-xs text-rose-200 text-center flex items-center gap-2 shadow-2xl">
+        <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
+        </svg>
+        <span>หมุน / ซูม ดูข้อความนะคะ</span>
+    </div>
+
+    <script>
+        const CORRECT_PASSCODE = "060869";
+
+        const uiOverlay = document.getElementById('ui-overlay');
+        const passcodeHidden = document.getElementById('passcode-hidden');
+        const pinContainer = document.getElementById('pin-container');
+        const pinBoxes = pinContainer.querySelectorAll('.pin-box');
+        const submitBtn = document.getElementById('submit-btn');
+        const errorMsg = document.getElementById('error-msg');
+        const interactiveHint = document.getElementById('interactive-hint');
+
+        let scene, camera, renderer, controls;
+        let galaxyParticles, heartParticles, deepStarfield, nebulaParticles, shootingStars;
+        let floatingElementsGroup, planetsGroup, backgroundHeartsGroup;
+        let blackHoleGroup, accretionDiskMesh, photonRingMesh1, photonRingMesh2;
+        
+        let isAssembling = false;
+        let assembleProgress = 0;
+
+        let galaxyPositionsTarget, galaxyPositionsScatter;
+        let heartPositionsTarget, heartPositionsScatter;
+        let shootingStarPositions, shootingStarVelocities;
+        let gifSpriteMaterials = [];
+
+        const floatingTexts = [
+            "HAPPY ANNIVERSARY",
+            "รักๆๆๆๆๆๆๆ",
+            "ONLY U",
+            "แฟนเค้าสวยที่สุดด",
+            "แฟนเค้าน่ารักที่สุดด",
+            "แฟนพิเศษสำหรับเค้ามักๆ",
+            "อยู่กับเค้าไปนานๆนะคะ",
+            "อยากรักแฟนตลอดปัยย",
+            "ตั้งแต่มีเธอเค้ามีความสุขข",
+            "เค้าจะไม่ทิ้งแฟนไปไหนเลยยย",
+            "I LOVE YOU 3000",
+            "รอดูเด็กที่หน้าเหมือนเธอนะคะ",
+            "060869 วันอะไรน้า",
+            "เธอโครตจะเป็นแสงสว่าง",
+            "เค้าโครตโชคดีที่มีเธอ",
+            "น้ำหนาวตลอดปัย",
+            "LUVFAN",
+            "ขอบคุณทุกอย่างเลยยย",
+            "2Mแล้วนะคะ",
+            "ไอหมูไออ้วนแบะๆ",
+            "รัก นะ คะ",
+            "แฟนเค้าเก่งที่สู้ด"
+        ];
+
+        // Romantic Animated GIF Sticker URLs for 3D Floating Stickers
+        const gifStickerUrls = [
+            "https://media.tenor.com/9splOEEy68sAAAAi/my-melody-strawberry.gif",
+            "https://media.tenor.com/Fv8nW6ZuWcQAAAAi/my-melody-my-melo.gif",
+            "https://media1.tenor.com/m/h6x4GEyHkzwAAAAC/ibunwoo-love.gif",
+            "https://media1.tenor.com/m/MCKH5y2PKGUAAAAC/kuromi-laugh.gif",
+            "https://media.tenor.com/JRfZeUw4K1sAAAAi/kuromi-kuromi-cute.gif",
+            "https://media.tenor.com/u6SMLyKjbkoAAAAi/kuromi-and-my-melody-sanrio.gif",
+            "https://media.tenor.com/mQgsdMciwSQAAAAi/kuromi-crying.gif",
+            "https://media1.tenor.com/m/8Sb50jX2UqYAAAAC/batman.gif"
+        ];
+
+        function createTextTexture(text) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.shadowColor = 'rgba(244, 63, 94, 0.9)';
+            ctx.shadowBlur = 16;
+            ctx.font = 'bold 32px "Plus Jakarta Sans", sans-serif';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createHeartTexture(colorHex = '#f43f5e') {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = colorHex;
+            ctx.shadowColor = '#fb7185';
+            ctx.shadowBlur = 14;
+            ctx.beginPath();
+            const x = 32, y = 32;
+            ctx.moveTo(x, y + 16);
+            ctx.bezierCurveTo(x, y + 12, x - 20, y - 4, x - 20, y - 16);
+            ctx.bezierCurveTo(x - 20, y - 24, x - 8, y - 28, x, y - 16);
+            ctx.bezierCurveTo(x + 8, y - 28, x + 20, y - 24, x + 20, y - 16);
+            ctx.bezierCurveTo(x + 20, y - 4, x, y + 12, x, y + 16);
+            ctx.fill();
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createAccretionDiskTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            const grad = ctx.createRadialGradient(256, 256, 60, 256, 256, 250);
+            grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            grad.addColorStop(0.15, 'rgba(244, 63, 94, 0.95)');
+            grad.addColorStop(0.4, 'rgba(192, 132, 252, 0.7)');
+            grad.addColorStop(0.7, 'rgba(236, 72, 153, 0.3)');
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 512, 512);
+
+            for (let i = 0; i < 360; i += 2) {
+                const rad = i * Math.PI / 180;
+                const len = 120 + Math.random() * 120;
+                ctx.strokeStyle = `rgba(255, 220, 240, ${Math.random() * 0.4})`;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(256 + Math.cos(rad) * 65, 256 + Math.sin(rad) * 65);
+                ctx.lineTo(256 + Math.cos(rad) * len, 256 + Math.sin(rad) * len);
+                ctx.stroke();
+            }
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createBlackHole() {
+            blackHoleGroup = new THREE.Group();
+            blackHoleGroup.position.set(0, -1, 0);
+
+            const eventHorizonGeo = new THREE.SphereGeometry(3.8, 64, 64);
+            const eventHorizonMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const eventHorizon = new THREE.Mesh(eventHorizonGeo, eventHorizonMat);
+            blackHoleGroup.add(eventHorizon);
+
+            const photonGeo1 = new THREE.RingGeometry(3.82, 4.3, 64);
+            const photonMat1 = new THREE.MeshBasicMaterial({
+                color: 0xffe4e6,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.95,
+                blending: THREE.AdditiveBlending
+            });
+            photonRingMesh1 = new THREE.Mesh(photonGeo1, photonMat1);
+            photonRingMesh1.rotation.x = Math.PI / 2;
+            blackHoleGroup.add(photonRingMesh1);
+
+            const photonGeo2 = new THREE.RingGeometry(3.82, 4.6, 64);
+            const photonMat2 = new THREE.MeshBasicMaterial({
+                color: 0xf43f5e,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.85,
+                blending: THREE.AdditiveBlending
+            });
+            photonRingMesh2 = new THREE.Mesh(photonGeo2, photonMat2);
+            photonRingMesh2.rotation.x = Math.PI / 6;
+            photonRingMesh2.rotation.y = Math.PI / 4;
+            blackHoleGroup.add(photonRingMesh2);
+
+            const diskGeo = new THREE.RingGeometry(4.0, 18.0, 64);
+            const diskTex = createAccretionDiskTexture();
+            const diskMat = new THREE.MeshBasicMaterial({
+                map: diskTex,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.95,
+                blending: THREE.AdditiveBlending
+            });
+            accretionDiskMesh = new THREE.Mesh(diskGeo, diskMat);
+            accretionDiskMesh.rotation.x = Math.PI / 2;
+            blackHoleGroup.add(accretionDiskMesh);
+
+            blackHoleGroup.scale.set(0.001, 0.001, 0.001);
+            scene.add(blackHoleGroup);
+        }
+
+        function initThreeScene() {
+            const container = document.getElementById('canvas-container');
+
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x030108, 0.0025);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1200);
+            camera.position.set(0, 32, 85);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxDistance = 280;
+            controls.minDistance = 10;
+            controls.maxPolarAngle = Math.PI / 2 + 0.18;
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+            scene.add(ambientLight);
+
+            const pointLight = new THREE.PointLight(0xf43f5e, 3.0, 250);
+            pointLight.position.set(0, 10, 0);
+            scene.add(pointLight);
+
+            createBlackHole();
+
+            const deepStarCount = 80000;
+            const deepStarGeo = new THREE.BufferGeometry();
+            const deepStarPos = new Float32Array(deepStarCount * 3);
+            const deepStarColors = new Float32Array(deepStarCount * 3);
+
+            for (let i = 0; i < deepStarCount; i++) {
+                const u = Math.random();
+                const v = Math.random();
+                const theta = u * 2.0 * Math.PI;
+                const phi = Math.acos(2.0 * v - 1.0);
+                const r = 140 + Math.random() * 380;
+
+                deepStarPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+                deepStarPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+                deepStarPos[i * 3 + 2] = r * Math.cos(phi);
+
+                const starColor = new THREE.Color();
+                if (Math.random() > 0.5) {
+                    starColor.setHSL(0.9 + Math.random() * 0.1, 0.85, 0.8);
+                } else {
+                    starColor.setHSL(0.55 + Math.random() * 0.15, 0.8, 0.85);
+                }
+
+                deepStarColors[i * 3] = starColor.r;
+                deepStarColors[i * 3 + 1] = starColor.g;
+                deepStarColors[i * 3 + 2] = starColor.b;
+            }
+
+            deepStarGeo.setAttribute('position', new THREE.BufferAttribute(deepStarPos, 3));
+            deepStarGeo.setAttribute('color', new THREE.BufferAttribute(deepStarColors, 3));
+
+            const deepStarMat = new THREE.PointsMaterial({
+                size: 0.45,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.9,
+                blending: THREE.AdditiveBlending
+            });
+
+            deepStarfield = new THREE.Points(deepStarGeo, deepStarMat);
+            scene.add(deepStarfield);
+
+            const cometCount = 150;
+            const cometGeo = new THREE.BufferGeometry();
+            shootingStarPositions = new Float32Array(cometCount * 3);
+            shootingStarVelocities = [];
+
+            for (let i = 0; i < cometCount; i++) {
+                shootingStarPositions[i * 3] = (Math.random() - 0.5) * 300;
+                shootingStarPositions[i * 3 + 1] = Math.random() * 150 + 50;
+                shootingStarPositions[i * 3 + 2] = (Math.random() - 0.5) * 300;
+
+                shootingStarVelocities.push({
+                    x: (Math.random() - 0.5) * 1.5,
+                    y: -Math.random() * 2.0 - 1.0,
+                    z: (Math.random() - 0.5) * 1.5
+                });
+            }
+
+            cometGeo.setAttribute('position', new THREE.BufferAttribute(shootingStarPositions, 3));
+            const cometMat = new THREE.PointsMaterial({
+                size: 1.2,
+                color: 0xffe4e6,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+            shootingStars = new THREE.Points(cometGeo, cometMat);
+            scene.add(shootingStars);
+
+            planetsGroup = new THREE.Group();
+
+            function createPlanetTexture(baseColor, stripeColor) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+
+                const grad = ctx.createLinearGradient(0, 0, 0, 256);
+                grad.addColorStop(0, baseColor);
+                grad.addColorStop(0.5, stripeColor);
+                grad.addColorStop(1, baseColor);
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, 256, 256);
+
+                for (let i = 0; i < 20; i++) {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.2})`;
+                    ctx.fillRect(0, Math.random() * 256, 256, Math.random() * 14 + 4);
+                }
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            const planet1Geo = new THREE.SphereGeometry(7, 32, 32);
+            const planet1Mat = new THREE.MeshStandardMaterial({
+                map: createPlanetTexture('#fda4af', '#e11d48'),
+                roughness: 0.5
+            });
+            const planet1 = new THREE.Mesh(planet1Geo, planet1Mat);
+            planet1.position.set(-75, 25, -60);
+
+            const ringGeo = new THREE.RingGeometry(9.5, 16, 64);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: 0xfbcfe8,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.75
+            });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = Math.PI / 2.5;
+            planet1.add(ring);
+            planetsGroup.add(planet1);
+
+            const planet2Geo = new THREE.SphereGeometry(5, 32, 32);
+            const planet2Mat = new THREE.MeshStandardMaterial({
+                map: createPlanetTexture('#c084fc', '#f43f5e'),
+                roughness: 0.4
+            });
+            const planet2 = new THREE.Mesh(planet2Geo, planet2Mat);
+            planet2.position.set(80, -18, -50);
+            planetsGroup.add(planet2);
+
+            const planet3Geo = new THREE.SphereGeometry(4, 32, 32);
+            const planet3Mat = new THREE.MeshStandardMaterial({
+                map: createPlanetTexture('#38bdf8', '#818cf8'),
+                roughness: 0.3
+            });
+            const planet3 = new THREE.Mesh(planet3Geo, planet3Mat);
+            planet3.position.set(-50, -30, 50);
+            planetsGroup.add(planet3);
+
+            planetsGroup.scale.set(0.001, 0.001, 0.001);
+            scene.add(planetsGroup);
+
+            const galaxyCount = 90000;
+            const galaxyGeo = new THREE.BufferGeometry();
+            galaxyPositionsTarget = new Float32Array(galaxyCount * 3);
+            galaxyPositionsScatter = new Float32Array(galaxyCount * 3);
+            const galaxyPosCurr = new Float32Array(galaxyCount * 3);
+            const galaxyColors = new Float32Array(galaxyCount * 3);
+
+            for (let i = 0; i < galaxyCount; i++) {
+                const radius = 5 + Math.pow(Math.random(), 1.1) * 55;
+                const branches = 4;
+                const spin = radius * 0.22;
+                const branchAngle = ((i % branches) * (2 * Math.PI / branches)) + spin;
+
+                const randomX = (Math.random() - 0.5) * (radius * 0.35);
+                const randomY = (Math.random() - 0.5) * (radius * 0.25);
+                const randomZ = (Math.random() - 0.5) * (radius * 0.35);
+
+                const tx = Math.cos(branchAngle) * radius + randomX;
+                const ty = randomY - 1;
+                const tz = Math.sin(branchAngle) * radius + randomZ;
+
+                galaxyPositionsTarget[i * 3] = tx;
+                galaxyPositionsTarget[i * 3 + 1] = ty;
+                galaxyPositionsTarget[i * 3 + 2] = tz;
+
+                const sr = 130 + Math.random() * 220;
+                const stheta = Math.random() * Math.PI * 2;
+                const sphi = Math.acos(2 * Math.random() - 1);
+                galaxyPositionsScatter[i * 3] = sr * Math.sin(sphi) * Math.cos(stheta);
+                galaxyPositionsScatter[i * 3 + 1] = sr * Math.sin(sphi) * Math.sin(stheta);
+                galaxyPositionsScatter[i * 3 + 2] = sr * Math.cos(sphi);
+
+                galaxyPosCurr[i * 3] = galaxyPositionsScatter[i * 3];
+                galaxyPosCurr[i * 3 + 1] = galaxyPositionsScatter[i * 3 + 1];
+                galaxyPosCurr[i * 3 + 2] = galaxyPositionsScatter[i * 3 + 2];
+
+                const color = new THREE.Color();
+                if (radius < 18) {
+                    color.setHSL(0.95 + Math.random() * 0.05, 0.95, 0.85);
+                } else {
+                    color.setHSL(0.72 + Math.random() * 0.2, 0.85, 0.72);
+                }
+                galaxyColors[i * 3] = color.r;
+                galaxyColors[i * 3 + 1] = color.g;
+                galaxyColors[i * 3 + 2] = color.b;
+            }
+
+            galaxyGeo.setAttribute('position', new THREE.BufferAttribute(galaxyPosCurr, 3));
+            galaxyGeo.setAttribute('color', new THREE.BufferAttribute(galaxyColors, 3));
+
+            const galaxyMat = new THREE.PointsMaterial({
+                size: 0.55,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.88,
+                blending: THREE.AdditiveBlending
+            });
+            galaxyParticles = new THREE.Points(galaxyGeo, galaxyMat);
+            scene.add(galaxyParticles);
+
+            const heartCount = 50000;
+            const heartGeo = new THREE.BufferGeometry();
+            heartPositionsTarget = new Float32Array(heartCount * 3);
+            heartPositionsScatter = new Float32Array(heartCount * 3);
+            const heartPosCurr = new Float32Array(heartCount * 3);
+            const heartColors = new Float32Array(heartCount * 3);
+
+            for (let i = 0; i < heartCount; i++) {
+                const t = Math.random() * Math.PI * 2;
+                const scale = 0.92;
+
+                let hx = 16 * Math.pow(Math.sin(t), 3);
+                let hy = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+                let hz = (Math.random() - 0.5) * 10;
+
+                hx *= scale;
+                hy = hy * scale + 15; 
+                hz *= scale;
+
+                hx += (Math.random() - 0.5) * 2.8;
+                hy += (Math.random() - 0.5) * 2.8;
+                hz += (Math.random() - 0.5) * 2.8;
+
+                heartPositionsTarget[i * 3] = hx;
+                heartPositionsTarget[i * 3 + 1] = hy;
+                heartPositionsTarget[i * 3 + 2] = hz;
+
+                const sr = 150 + Math.random() * 200;
+                const stheta = Math.random() * Math.PI * 2;
+                const sphi = Math.acos(2 * Math.random() - 1);
+                heartPositionsScatter[i * 3] = sr * Math.sin(sphi) * Math.cos(stheta);
+                heartPositionsScatter[i * 3 + 1] = sr * Math.sin(sphi) * Math.sin(stheta);
+                heartPositionsScatter[i * 3 + 2] = sr * Math.cos(sphi);
+
+                heartPosCurr[i * 3] = heartPositionsScatter[i * 3];
+                heartPosCurr[i * 3 + 1] = heartPositionsScatter[i * 3 + 1];
+                heartPosCurr[i * 3 + 2] = heartPositionsScatter[i * 3 + 2];
+
+                const color = new THREE.Color();
+                color.setHSL(0.92 + Math.random() * 0.08, 0.95, 0.78);
+                heartColors[i * 3] = color.r;
+                heartColors[i * 3 + 1] = color.g;
+                heartColors[i * 3 + 2] = color.b;
+            }
+
+            heartGeo.setAttribute('position', new THREE.BufferAttribute(heartPosCurr, 3));
+            heartGeo.setAttribute('color', new THREE.BufferAttribute(heartColors, 3));
+
+            const heartMat = new THREE.PointsMaterial({
+                size: 0.65,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.92,
+                blending: THREE.AdditiveBlending
+            });
+            heartParticles = new THREE.Points(heartGeo, heartMat);
+            scene.add(heartParticles);
+
+            floatingElementsGroup = new THREE.Group();
+            const textureLoader = new THREE.TextureLoader();
+            textureLoader.crossOrigin = 'anonymous';
+
+            // Load animated GIF stickers using THREE.TextureLoader
+            gifStickerUrls.forEach((url, idx) => {
+                textureLoader.load(url, (tex) => {
+                    tex.generateMipmaps = false;
+                    tex.minFilter = THREE.LinearFilter;
+                    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+                    gifSpriteMaterials.push(mat);
+                    const sprite = new THREE.Sprite(mat);
+                    sprite.scale.set(8.5, 8.5, 1);
+                    const angle = (idx / gifStickerUrls.length) * Math.PI * 2;
+                    const radius = 24 + (idx % 3) * 6;
+                    sprite.position.set(Math.cos(angle) * radius, (idx % 4) * 6 - 6, Math.sin(angle) * radius);
+                    floatingElementsGroup.add(sprite);
+                }, undefined, (err) => {
+                    console.log('GIF load fallback', err);
+                });
+            });
+
+            floatingTexts.forEach((text, idx) => {
+                const tex = createTextTexture(text);
+                const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.92 });
+                const sprite = new THREE.Sprite(mat);
+                sprite.scale.set(18, 4.5, 1);
+
+                const angle = (idx / floatingTexts.length) * Math.PI * 2 + (idx * 0.1);
+                const radius = 20 + (idx % 4) * 9;
+                const height = ((idx % 7) - 3) * 5;
+                sprite.position.set(Math.cos(angle) * radius, height, Math.sin(angle) * radius);
+                floatingElementsGroup.add(sprite);
+            });
+
+            const heartTexPink = createHeartTexture('#f43f5e');
+            const heartTexWhite = createHeartTexture('#ffffff');
+            const heartTexViolet = createHeartTexture('#c084fc');
+
+            for (let i = 0; i < 85; i++) {
+                const tex = (i % 3 === 0) ? heartTexWhite : (i % 3 === 1) ? heartTexViolet : heartTexPink;
+                const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.85 });
+                const sprite = new THREE.Sprite(mat);
+                const size = 2.5 + Math.random() * 3.5;
+                sprite.scale.set(size, size, 1);
+                
+                const angle = Math.random() * Math.PI * 2;
+                const r = 12 + Math.random() * 45;
+                const h = (Math.random() - 0.5) * 35;
+                sprite.position.set(Math.cos(angle) * r, h, Math.sin(angle) * r);
+                floatingElementsGroup.add(sprite);
+            }
+
+            floatingElementsGroup.scale.set(0.001, 0.001, 0.001);
+            scene.add(floatingElementsGroup);
+        }
+
+        function setupPinInput() {
+            let pinValues = ["", "", "", "", "", ""];
+
+            function updatePinUI() {
+                const currentVal = passcodeHidden.value.replace(/\D/g, '').slice(0, 6);
+                pinValues = currentVal.split("");
+                while(pinValues.length < 6) pinValues.push("");
+
+                pinBoxes.forEach((box, i) => {
+                    box.textContent = pinValues[i] || "";
+                    if (i === currentVal.length && i < 6) {
+                        box.classList.add('active');
+                    } else {
+                        box.classList.remove('active');
+                    }
+                });
+            }
+
+            passcodeHidden.addEventListener('input', (e) => {
+                const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                e.target.value = val;
+                updatePinUI();
+                errorMsg.classList.add('opacity-0');
+
+                if (val.length === 6) {
+                    verifyPasscode(val);
+                }
+            });
+
+            passcodeHidden.addEventListener('focus', () => {
+                updatePinUI();
+            });
+
+            passcodeHidden.addEventListener('blur', () => {
+                pinBoxes.forEach(box => box.classList.remove('active'));
+            });
+
+            submitBtn.addEventListener('click', () => {
+                const entered = passcodeHidden.value.trim();
+                verifyPasscode(entered);
+            });
+
+            setTimeout(() => {
+                passcodeHidden.focus();
+                updatePinUI();
+            }, 300);
+        }
+
+        function verifyPasscode(enteredCode) {
+            if (enteredCode === CORRECT_PASSCODE) {
+                uiOverlay.style.transform = 'scale(0.9) translateY(-30px)';
+                uiOverlay.style.opacity = '0';
+                uiOverlay.style.pointerEvents = 'none';
+
+                setTimeout(() => {
+                    uiOverlay.style.display = 'none';
+                    interactiveHint.classList.remove('opacity-0', 'pointer-events-none');
+                    setTimeout(() => interactiveHint.classList.add('opacity-0'), 6000);
+                }, 700);
+
+                isAssembling = true;
+            } else {
+                const card = uiOverlay.querySelector('.luxury-glass');
+                card.classList.remove('shake');
+                void card.offsetWidth;
+                card.classList.add('shake');
+                errorMsg.classList.remove('opacity-0');
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = Date.now() * 0.001;
+
+            if (controls) controls.update();
+
+            if (deepStarfield) deepStarfield.rotation.y = time * 0.018;
+            if (planetsGroup) planetsGroup.rotation.y = time * 0.025;
+
+            if (shootingStars) {
+                const pos = shootingStars.geometry.attributes.position.array;
+                for (let i = 0; i < 150; i++) {
+                    pos[i * 3] += shootingStarVelocities[i].x;
+                    pos[i * 3 + 1] += shootingStarVelocities[i].y;
+                    pos[i * 3 + 2] += shootingStarVelocities[i].z;
+
+                    if (pos[i * 3 + 1] < -100) {
+                        pos[i * 3] = (Math.random() - 0.5) * 300;
+                        pos[i * 3 + 1] = Math.random() * 100 + 100;
+                        pos[i * 3 + 2] = (Math.random() - 0.5) * 300;
+                    }
+                }
+                shootingStars.geometry.attributes.position.needsUpdate = true;
+            }
+
+            if (blackHoleGroup) {
+                accretionDiskMesh.rotation.z = time * 0.4;
+                photonRingMesh1.rotation.z = -time * 0.25;
+                photonRingMesh2.rotation.z = time * 0.3;
+            }
+
+            if (floatingElementsGroup) {
+                floatingElementsGroup.rotation.y = time * 0.1;
+            }
+
+            if (isAssembling) {
+                assembleProgress = Math.min(assembleProgress + 0.015, 1.0);
+                const ease = 1 - Math.pow(1 - assembleProgress, 3);
+
+                const galPos = galaxyParticles.geometry.attributes.position.array;
+                for (let i = 0; i < galaxyPositionsTarget.length; i++) {
+                    galPos[i] = THREE.MathUtils.lerp(galaxyPositionsScatter[i], galaxyPositionsTarget[i], ease);
+                }
+                galaxyParticles.geometry.attributes.position.needsUpdate = true;
+                galaxyParticles.rotation.y = time * 0.06;
+
+                const heartPos = heartParticles.geometry.attributes.position.array;
+                for (let i = 0; i < heartPositionsTarget.length; i++) {
+                    heartPos[i] = THREE.MathUtils.lerp(heartPositionsScatter[i], heartPositionsTarget[i], ease);
+                }
+                heartParticles.geometry.attributes.position.needsUpdate = true;
+                heartParticles.rotation.y = Math.sin(time * 0.5) * 0.12;
+
+                const scaleVal = THREE.MathUtils.lerp(0.001, 1.0, ease);
+                blackHoleGroup.scale.set(scaleVal, scaleVal, scaleVal);
+                planetsGroup.scale.set(scaleVal, scaleVal, scaleVal);
+                floatingElementsGroup.scale.set(scaleVal, scaleVal, scaleVal);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            if (!camera || !renderer) return;
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.addEventListener('load', () => {
+            initThreeScene();
+            setupPinInput();
+            animate();
+        });
+    </script>
+</body>
+</html>
